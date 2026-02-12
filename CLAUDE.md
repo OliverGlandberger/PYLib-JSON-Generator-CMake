@@ -1,5 +1,14 @@
 # PYLib-JSON-Generator-CMake - Project Context
 
+## Open Decisions
+
+### Cross-Project
+- **No CI/CD**: Consider adding GitHub Actions (free for public repos). A simple workflow running CMake configure + build + ctest on push catches regressions early. Completely free.
+- **Naming consistency**: Ecosystem uses mixed conventions — underscores and hyphens. Pick one and standardize across all repos.
+
+### This Project
+- **Does this project actually need its own FetchContent dependencies?** `fetch_requirements.txt` is empty and `FetchModules_JSONGEN.cmake` is a no-op. If this library will never fetch sub-dependencies, drop the fetch module entirely to simplify the project and reduce surface area when consuming Core.
+
 ## What This Project Is
 
 PYLib-JSON-Generator-CMake is intended to be a **general-purpose JSON builder library** - a Python library that programmatically constructs and writes JSON files from structured input (builder pattern API). It is consumed by PYLib-Init-Proj-CMake as a fetched submodule.
@@ -104,10 +113,13 @@ When Init-Proj configures:
 
 1. **Replace cmake/ directory** with PYLib_CMakeCore consumption (same as Init-Proj's BETA plan)
 2. **Align fetch_requirements format** to 3-part (`Name|URL|Tag`)
+   - **DECISION: Core integration first, or JSON implementation first?** Recommendation: do Core integration (items 1-2) before JSON builder (items 3-5). Otherwise you'll write tests against infrastructure that's about to be ripped out.
 3. **Implement the JSON builder library**:
    - Replace `src/text_parser.py` with actual JSON generation modules
    - Design a builder-pattern API for programmatic JSON construction
    - The library should be importable as `from modules.pylib_json_generator.src.json_builder import ...` when consumed by Init-Proj
+   - **DECISION: What is the actual API?** Options: (a) builder pattern with fluent chaining (`JsonBuilder().object().key("name").value("foo").end().build()`), (b) dict-like construction with file I/O (thin wrapper around `json.dumps()`), (c) template-based (define JSON schemas and fill in values). If it's just a thin wrapper around Python's built-in `json` module, consider whether this library needs to exist at all, or should provide value the stdlib doesn't (schema validation, templating, merge strategies).
+   - **Free tools to consider building on**: [Pydantic](https://pydantic-docs.helpmanual.io/) (MIT) for structured data validation + serialization. [jsonschema](https://python-jsonschema.readthedocs.io/) (MIT) for JSON schema validation. Python's built-in `json` module already provides `json.dumps()`, `json.dump()`, `json.load()`, `json.JSONEncoder`.
 4. **Write real tests** for the JSON builder functionality
 5. **Update main.py** to demonstrate JSON builder usage
 6. This project reaches BETA after Init-Proj, roughly simultaneously with Init-Proj's own BETA
